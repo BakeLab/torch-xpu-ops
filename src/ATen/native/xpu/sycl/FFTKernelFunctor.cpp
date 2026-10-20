@@ -730,10 +730,10 @@ void _fft_with_size_sycl(
     const Tensor& self,
     int64_t signal_ndim,
     bool complex_input,
-    bool complex_output,
+    bool complex_output [[maybe_unused]],
     bool inverse,
     IntArrayRef checked_signal_sizes,
-    bool onesided) {
+    bool onesided [[maybe_unused]]) {
   Tensor input_ = self;
   // real/imag dimension must aligned when viewed as of complex type
 
