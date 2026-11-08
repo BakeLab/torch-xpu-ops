@@ -84,7 +84,8 @@ jobs:
   prepare:
     runs-on: ${{ inputs.runner != '' && inputs.runner || 'pvc' }}
     if: >-
-      github.event.pull_request.draft == false
+      (github.server_url == 'https://github.com' || (inputs.runner != '' && inputs.runner != 'pvc'))
+      && github.event.pull_request.draft == false
       && !contains(github.event.pull_request.labels.*.name, 'disable_all')
       && !contains(github.event.pull_request.labels.*.name, 'disable_transformers')
     outputs:
@@ -113,6 +114,7 @@ jobs:
 
   tests:
     needs: prepare
+    if: github.server_url == 'https://github.com' || (inputs.runner != '' && inputs.runner != 'pvc')
     runs-on: ${{ inputs.runner != '' && inputs.runner || 'pvc' }}
     container:
       image: ${{ contains(inputs.runner || 'pvc', 'pvc') && 'intelgpu/ubuntu-24.04-lts2:2523.40' || 'intelgpu/ubuntu-26.04-rolling:26.14' }}
