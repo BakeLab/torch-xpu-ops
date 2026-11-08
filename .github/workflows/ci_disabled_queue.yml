@@ -52,7 +52,8 @@ concurrency:
 jobs:
   queue:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    # This queue manages GitHub issues and GitHub workflow runs using MERGE_TOKEN.
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v7
       - name: Queue the next DISABLED batch
