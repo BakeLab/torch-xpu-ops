@@ -36,10 +36,6 @@ jobs:
               cat /etc/os-release
               uname -a
               id
-          - name: git-and-gh-tools
-            run: |
-              git --version
-              gh --version | head -n 1
           - name: clang-tools
             run: |
               clang --version | head -n 1
