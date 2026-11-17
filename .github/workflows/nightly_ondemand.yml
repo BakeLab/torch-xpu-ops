@@ -29,7 +29,7 @@ on:
       ut:
         type: string
         default: ''
-        description: UT scope. 'op_regression,op_extended,op_ut,skipped_ut,xpu_profiling,torch_xpu,op_regression_dev1,xpu_distributed,upstream_distributed,upstream_inductor,upstream_default,microbench,windows'. Delimiter is comma
+        description: UT scope. 'op_regression,op_extended,op_ut,skipped_ut,xpu_profiling,torch_xpu,op_regression_dev1,xpu_distributed,upstream_distributed,upstream_inductor,upstream_default,microbench'. Delimiter is comma
       suite:
         type: string
         default: ''
@@ -121,7 +121,7 @@ jobs:
             else
               test_type="build-ondemand"
             fi
-            ut="$(echo ${{ inputs.ut }} |sed -E 's/(microbench,|,microbench)//g;s/(,windows|windows,)//g;s/,/","/g;s/^/["/;s/$/"]/')"
+            ut="$(echo ${{ inputs.ut }} |sed -E 's/(microbench,|,microbench)//g;s/,/","/g;s/^/["/;s/$/"]/')"
             suite="$(echo ${{ inputs.suite }} |sed 's/,/","/g;s/^/["/;s/$/"]/')"
             if [ -n "${{ inputs.scenario }}" ];then
               scenario="$(echo ${{ inputs.scenario }} |sed 's/,/","/g;s/^/["/;s/$/"]/')"
@@ -180,12 +180,10 @@ jobs:
 
   Linux-Nightly-Ondemand-UT-Report:
     name: ut-report
-    needs: [Conditions-Filter, Linux-Nightly-Ondemand-UT-Tests,
-            Windows-Nightly-Ondemand-UT-Tests]
+    needs: ["Conditions-Filter", "Linux-Nightly-Ondemand-UT-Tests"]
     if: >-
       ${{ !cancelled()
-      && (!endsWith(needs.Linux-Nightly-Ondemand-UT-Tests.result, 'ed')
-      || !endsWith(needs.Windows-Nightly-Ondemand-UT-Tests.result, 'ed')) }}
+      && (!endsWith(needs.Linux-Nightly-Ondemand-UT-Tests.result, 'ed')) }}
     secrets: inherit
     permissions:
       actions: read
@@ -273,33 +271,3 @@ jobs:
       runner: pvc
       pytorch: ${{ needs.Conditions-Filter.outputs.pytorch }}
       python: ${{ needs.Conditions-Filter.outputs.python }}
-
-  Windows-Nightly-Ondemand-Build:
-    name: windows-build
-    needs: [Conditions-Filter]
-    if: ${{ github.event_name == 'schedule' || contains(inputs.ut, 'windows') }}
-    secrets: inherit
-    uses: ./.github/workflows/_windows_build.yml
-    with:
-      python: ${{ needs.Conditions-Filter.outputs.python }}
-      runner: windows-build
-      torch_xpu_ops: ${{ needs.Conditions-Filter.outputs.torch_xpu_ops }}
-      pytorch: ${{ needs.Conditions-Filter.outputs.pytorch }}
-      triton: ${{ needs.Conditions-Filter.outputs.triton }}
-
-  Windows-Nightly-Ondemand-UT-Tests:
-    name: windows-ut
-    needs: [Conditions-Filter, Windows-Nightly-Ondemand-Build]
-    if: ${{ github.event_name == 'schedule' || contains(inputs.ut, 'windows') }}
-    secrets: inherit
-    strategy:
-      fail-fast: false
-      matrix:
-        ut_name: [basic, op_ut]
-    uses: ./.github/workflows/_windows_ut.yml
-    with:
-      ut: ${{ matrix.ut_name }}
-      python: ${{ needs.Conditions-Filter.outputs.python }}
-      runner: windows-test
-      torch_xpu_ops: ${{ needs.Conditions-Filter.outputs.torch_xpu_ops }}
-      pytorch: ${{ needs.Conditions-Filter.outputs.pytorch }}

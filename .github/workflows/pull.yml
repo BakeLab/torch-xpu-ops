@@ -42,8 +42,6 @@ jobs:
       skip_ut: ${{ steps.live-labels.outputs.skip_ut }}
       skip_e2e: ${{ steps.live-labels.outputs.skip_e2e }}
       skip_distributed: ${{ steps.live-labels.outputs.skip_distributed }}
-      skip_win: ${{ steps.live-labels.outputs.skip_win }}
-      force_win_ut: ${{ steps.live-labels.outputs.force_win_ut }}
     steps:
       - name: Checkout torch-xpu-ops
         uses: actions/checkout@v7
@@ -201,32 +199,6 @@ jobs:
           echo "skip_ut=$(has disable_ut)" >> "$GITHUB_OUTPUT"
           echo "skip_e2e=$(has disable_e2e)" >> "$GITHUB_OUTPUT"
           echo "skip_distributed=$(has disable_distributed)" >> "$GITHUB_OUTPUT"
-          echo "skip_win=$(has disable_win)" >> "$GITHUB_OUTPUT"
-          echo "force_win_ut=$(has windows_ci)" >> "$GITHUB_OUTPUT"
-
-  conditions-filter-win:
-    if: ${{ github.repository_owner == 'intel' && github.event.pull_request.draft == false }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    outputs:
-      src_changed: ${{ steps.check-files.outputs.src_changed }}
-    steps:
-      - uses: dorny/paths-filter@v4
-        id: check-files
-        with:
-          filters: |
-            src_changed: 
-              - 'cmake/**'
-              - 'tools/**'
-              - 'src/**.cmake'
-              - 'CMakeLists.txt'
-              - 'test/sycl/CMakeLists.txt'
-              - 'src/xccl/CMakeLists.txt'
-              - 'src/ATen/CMakeLists.txt'
-              - 'src/CMakeLists.txt'
-              - '.github/workflows/_windows_ut.yml'
-              - '.github/actions/windows-testenv/**'
-              - '.github/actions/windows-uttest/**'
 
   linux-build:
     needs: preci-lint-check
@@ -298,11 +270,10 @@ jobs:
 
   ut-report:
     name: ut-report
-    needs: [linux-ut, linux-distributed, windows-ut, preci-lint-check]
+    needs: ["linux-ut", "linux-distributed", "preci-lint-check"]
     if: >-
       ${{ !cancelled() && needs.preci-lint-check.outputs.skip_all != 'true'
-      && (!endsWith(needs.linux-ut.result, 'ed') || !endsWith(needs.linux-distributed.result, 'ed')
-      || !endsWith(needs.windows-ut.result, 'ed')) }}
+      && (!endsWith(needs.linux-ut.result, 'ed') || !endsWith(needs.linux-distributed.result, 'ed')) }}
     secrets: inherit
     permissions:
       actions: read
@@ -339,38 +310,3 @@ jobs:
     uses: ./.github/workflows/_linux_e2e_summary.yml
     with:
       test_type: ${{ contains(github.event.pull_request.labels.*.name, 'disable_build') && 'wheel-cicd' || 'build-cicd' }}
-
-  windows-build:
-    name: windows-build
-    needs: preci-lint-check
-    if: >-
-      ${{ github.repository_owner == 'intel' && github.event.pull_request.draft == false
-      && needs.preci-lint-check.outputs.skip_all != 'true'
-      && needs.preci-lint-check.outputs.skip_win != 'true' }}
-    secrets: inherit
-    uses: ./.github/workflows/_windows_build.yml
-    with:
-      runner: windows-build
-      pytorch: ${{ contains(github.event.pull_request.labels.*.name, 'disable_build') && 'nightly_wheel' || github.base_ref }}
-      torch_xpu_ops: ${{ contains(github.event.pull_request.labels.*.name, 'disable_build') && 'pinned' || 'main' }}
-
-  windows-ut:
-    name: windows-ut
-    needs: [windows-build, conditions-filter-win, preci-lint-check]
-    if: >-
-      ${{ needs.preci-lint-check.outputs.skip_all != 'true'
-      && needs.preci-lint-check.outputs.skip_win != 'true'
-      && (needs.preci-lint-check.outputs.force_win_ut == 'true'
-      || (needs.preci-lint-check.outputs.skip_ut != 'true'
-      && needs.conditions-filter-win.outputs.src_changed == 'true')) }}
-    secrets: inherit
-    strategy:
-      fail-fast: false
-      matrix:
-        ut_name: [basic]
-    uses: ./.github/workflows/_windows_ut.yml
-    with:
-      ut: ${{ matrix.ut_name }}
-      runner: windows-test
-      pytorch: ${{ contains(github.event.pull_request.labels.*.name, 'disable_build') && 'nightly_wheel' || github.base_ref }}
-      torch_xpu_ops: ${{ contains(github.event.pull_request.labels.*.name, 'disable_build') && 'pinned' || 'main' }}
